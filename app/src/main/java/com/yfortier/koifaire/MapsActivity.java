@@ -3,6 +3,7 @@ package com.yfortier.koifaire;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.location.Location;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
@@ -17,35 +18,44 @@ import android.widget.Toast;
 
 import androidx.fragment.app.FragmentActivity;
 
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.android.gms.tasks.Task;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
     public static List<Festival> festivals;
-
-    public static LatLngBounds FranceMetroBounds = new LatLngBounds(
+    private static LatLngBounds FranceMetroBounds = new LatLngBounds(
             new LatLng(42.6965954131, -4.32784220122),
             new LatLng(50.4644483399, 7.38468690323)
     );
 
+    //Location
+    Location currentLocation;
+    FusedLocationProviderClient fusedLocationProviderClient;
+
+    //Interface
     private GoogleMap mMap;
     private ImageButton btnNom;
     private ImageButton btnDomaine;
     private ImageButton btnDepartement;
-
     private EditText editTxtRecherche;
     private Spinner spinnerDepartements;
     private Spinner spinnerDomaines;
 
+    //Markers
     private LatLng mLatLng;
     private ArrayList<MarkerOptions> mMarkers = new ArrayList<>();
 
@@ -69,10 +79,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         btnNom = findViewById(R.id.btnNom);
         btnDomaine = findViewById(R.id.btnDomaine);
         btnDepartement = findViewById(R.id.btnDepartement);
-
         editTxtRecherche = findViewById(R.id.txtRecherche);
         spinnerDomaines = findViewById(R.id.spinnerDomaines);
         spinnerDepartements = findViewById(R.id.spinnerDepartements);
+
+        //Location
+        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
+        fetchLastLocation();
 
         //Call de la GoogleMap
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
@@ -90,6 +103,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             public View getInfoWindow(Marker arg0) {
                 return null;
             }
+
             @Override
             public View getInfoContents(Marker marker) {
 
@@ -124,19 +138,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         btnNom.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 boolean festivalFound = false;
-                setFocusFrance();
                 mMap.clear(); //Reset de la Map
-                mMarkers.clear(); //Reset des markers
-
                 for (Festival festival : festivals) {
                     if (festival.getNom_de_la_manifestation().equalsIgnoreCase(editTxtRecherche.getText().toString())) {
                         festivalFound = true;
                         mLatLng = new LatLng(festival.getLatitude(), festival.getLongitude());
                         placementMarkers(festival);
                         mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(mLatLng, 7));
+                        fetchLastLocation();
+                        setFocus();
                     }
                 }
-                if(!festivalFound) Toast.makeText(MapsActivity.this, "Festival introuvable", Toast.LENGTH_LONG).show();
+                if (!festivalFound)
+                    Toast.makeText(MapsActivity.this, "Festival introuvable", Toast.LENGTH_LONG).show();
             }
         });
 
@@ -144,14 +158,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         btnDomaine.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 mMap.clear(); //Reset de la Map
-                mMarkers.clear(); //Reset des markers
-
                 for (Festival festival : festivals) {
                     if (festival.getDomaine().equalsIgnoreCase(spinnerDomaines.getSelectedItem().toString())) {
                         mLatLng = new LatLng(festival.getLatitude(), festival.getLongitude());
                         placementMarkers(festival);
                     }
                 }
+                fetchLastLocation();
                 setFocus();
             }
         });
@@ -160,8 +173,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         btnDepartement.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 mMap.clear(); //Reset de la Map
-                mMarkers.clear(); //Reset des markers
-
                 // Traitement pour les DOM
                 for (Festival festival : festivals) {
                     switch (spinnerDepartements.getSelectedItem().toString().substring(0, 3)) {
@@ -184,6 +195,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             rechercheDepartement(festival, spinnerDepartements.getSelectedItem().toString().substring(0, 2));
                     }
                 }
+                fetchLastLocation();
                 setFocus();
             }
         });
@@ -207,6 +219,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
         LatLngBounds bounds = builder.build();
         mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 150));
+        mMarkers.clear(); //Reset des markers
     }
 
     private void placementMarkers(Festival festival) {
@@ -217,5 +230,24 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .title(festival.getNom_de_la_manifestation())
                 .snippet("Domaine : \t" + festival.getDomaine() + "\n"
                         + "Site Web : \t" + festival.getSite_web()));
+    }
+
+    private void fetchLastLocation() {
+        Task<Location> task = fusedLocationProviderClient.getLastLocation();
+        task.addOnSuccessListener(new OnSuccessListener<Location>() {
+            @Override
+            public void onSuccess(Location location) {
+                if (location != null) {
+                    currentLocation = location;
+                    mLatLng = new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude());
+                    mMarkers.add(new MarkerOptions().position(mLatLng));
+                    mMap.addMarker(new MarkerOptions()
+                            .position(mLatLng)
+                            .flat(true)
+                            .title("Vous êtes ici")
+                            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
+                }
+            }
+        });
     }
 }
