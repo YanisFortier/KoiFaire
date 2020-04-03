@@ -3,7 +3,6 @@ package com.yfortier.koifaire;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Typeface;
-import android.location.Location;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
@@ -14,11 +13,10 @@ import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.fragment.app.FragmentActivity;
 
-import com.google.android.gms.location.FusedLocationProviderClient;
-import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -27,7 +25,6 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.android.gms.tasks.OnSuccessListener;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -52,9 +49,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private LatLng mLatLng;
     private ArrayList<MarkerOptions> mMarkers = new ArrayList<>();
 
-    private FusedLocationProviderClient fusedLocationClient;
-
-    public MapsActivity() {}
+    public MapsActivity() {
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,12 +59,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         //Setup - Retrait du status bar en landscape
         if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
             requestWindowFeature(Window.FEATURE_NO_TITLE);
-            this.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        }
-        else {
+            this.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        } else {
             this.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
         }
-
 
         //Setup - FindViewById
         setContentView(R.layout.activity_maps);
@@ -79,20 +73,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         editTxtRecherche = findViewById(R.id.txtRecherche);
         spinnerDomaines = findViewById(R.id.spinnerDomaines);
         spinnerDepartements = findViewById(R.id.spinnerDepartements);
-
-        //Position
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-        fusedLocationClient.getLastLocation()
-                .addOnSuccessListener(this, new OnSuccessListener<Location>() {
-                    @Override
-                    public void onSuccess(Location location) {
-                        // Got last known location. In some rare situations this can be null.
-                        if (location != null) {
-                            // Logic to handle location object
-                        }
-                    }
-                });
-
 
         //Call de la GoogleMap
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
@@ -110,7 +90,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             public View getInfoWindow(Marker arg0) {
                 return null;
             }
-
             @Override
             public View getInfoContents(Marker marker) {
 
@@ -137,15 +116,43 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap.setOnMapLoadedCallback(new GoogleMap.OnMapLoadedCallback() {
             @Override
             public void onMapLoaded() {
-                focusFrance();
+                setFocusFrance();
             }
         });
 
         //Recherche par nom
         btnNom.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                focusFrance();
-                rechercheNom();
+                boolean festivalFound = false;
+                setFocusFrance();
+                mMap.clear(); //Reset de la Map
+                mMarkers.clear(); //Reset des markers
+
+                for (Festival festival : festivals) {
+                    if (festival.getNom_de_la_manifestation().equalsIgnoreCase(editTxtRecherche.getText().toString())) {
+                        festivalFound = true;
+                        mLatLng = new LatLng(festival.getLatitude(), festival.getLongitude());
+                        placementMarkers(festival);
+                        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(mLatLng, 7));
+                    }
+                }
+                if(!festivalFound) Toast.makeText(MapsActivity.this, "Festival introuvable", Toast.LENGTH_LONG).show();
+            }
+        });
+
+        //Recherche par domaine
+        btnDomaine.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                mMap.clear(); //Reset de la Map
+                mMarkers.clear(); //Reset des markers
+
+                for (Festival festival : festivals) {
+                    if (festival.getDomaine().equalsIgnoreCase(spinnerDomaines.getSelectedItem().toString())) {
+                        mLatLng = new LatLng(festival.getLatitude(), festival.getLongitude());
+                        placementMarkers(festival);
+                    }
+                }
+                setFocus();
             }
         });
 
@@ -177,63 +184,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             rechercheDepartement(festival, spinnerDepartements.getSelectedItem().toString().substring(0, 2));
                     }
                 }
-
-                // Focus sur le département
                 setFocus();
-            }
-        });
-
-        //Recherche par domaine
-        btnDomaine.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                mMap.clear(); //Reset de la Map
-                mMarkers.clear();
-
-                // On se balade dans la liste des festivals
-                for (Festival festival : festivals) {
-                    // Vérification si le nom correspond
-                    if (festival.getDomaine().equalsIgnoreCase(spinnerDomaines.getSelectedItem().toString())) {
-                        //Si c'est bon, on fait un jolie marker et on zoom
-                        mLatLng = new LatLng(festival.getLatitude(), festival.getLongitude());
-                        mMarkers.add(new MarkerOptions().position(mLatLng));
-                        mMap.addMarker(new MarkerOptions()
-                                .position(mLatLng)
-                                .title(festival.getNom_de_la_manifestation())
-                                .snippet("Domaine : \t" + festival.getDomaine() + "\n"
-                                        + "Site Web : \t" + festival.getSite_web()));
-                    }
-                }
-                //Focus domaine
-                setFocus();
-
             }
         });
     }
 
-    private void focusFrance() {
-        mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(MapsActivity.FranceMetroBounds, 150), 2000, null);
-    }
-
-    private void rechercheNom() {
-        mMap.clear(); //Reset de la Map
-        mMarkers.clear();
-
-        // On se balade dans la liste des festivals
-        for (Festival festival : festivals) {
-            // Vérification si le nom correspond
-            if (festival.getNom_de_la_manifestation().equalsIgnoreCase(editTxtRecherche.getText().toString())) {
-                //Si c'est bon, on fait un jolie marker et on zoom
-                mLatLng = new LatLng(festival.getLatitude(), festival.getLongitude());
-                mMap.addMarker(new MarkerOptions()
-                        .position(mLatLng)
-                        .title(festival.getNom_de_la_manifestation())
-                        .snippet("Domaine : \t" + festival.getDomaine() + "\n"
-                                + "Site Web : \t" + festival.getSite_web()));
-                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(mLatLng, 7));
-            }
+    private void rechercheDepartement(Festival festival, String s) {
+        if (festival.getDepartement().equals(s)) {
+            mLatLng = new LatLng(festival.getLatitude(), festival.getLongitude());
+            placementMarkers(festival);
         }
+    }
 
-
+    private void setFocusFrance() {
+        mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(MapsActivity.FranceMetroBounds, 150), 2000, null);
     }
 
     private void setFocus() {
@@ -245,15 +209,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 150));
     }
 
-    private void rechercheDepartement(Festival festival, String s) {
-        if (festival.getDepartement().equals(s)) {
-            mLatLng = new LatLng(festival.getLatitude(), festival.getLongitude());
-            mMarkers.add(new MarkerOptions().position(mLatLng));
-            mMap.addMarker(new MarkerOptions()
-                    .position(mLatLng)
-                    .title(festival.getNom_de_la_manifestation())
-                    .snippet("Domaine : \t" + festival.getDomaine() + "\n"
-                            + "Site Web : \t" + festival.getSite_web()));
-        }
+    private void placementMarkers(Festival festival) {
+        mMarkers.add(new MarkerOptions().position(mLatLng));
+        mMap.addMarker(new MarkerOptions()
+                .position(mLatLng)
+                //.icon(BitmapDescriptorFactory.defaultMarker(new Random().nextInt(360)))
+                .title(festival.getNom_de_la_manifestation())
+                .snippet("Domaine : \t" + festival.getDomaine() + "\n"
+                        + "Site Web : \t" + festival.getSite_web()));
     }
 }

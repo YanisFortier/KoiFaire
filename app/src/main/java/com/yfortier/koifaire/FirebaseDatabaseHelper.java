@@ -15,27 +15,23 @@ public class FirebaseDatabaseHelper {
     private DatabaseReference mReferenceFestivals;
     private List<Festival> festivals = new ArrayList<>();
 
-    public interface DataStatus{
-        void DataIsLoaded(List<Festival> festivals, List<String> keys);
-    }
-
     public FirebaseDatabaseHelper() {
         FirebaseDatabase mDatabase = FirebaseDatabase.getInstance();
         mReferenceFestivals = mDatabase.getReference("festivals");
     }
 
-    public void readDatabase(final DataStatus dataStatus){
+    public void readDatabase(final DataStatus dataStatus) {
         mReferenceFestivals.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 festivals.clear();
                 List<String> keys = new ArrayList<>();
-                for (DataSnapshot keyNode : dataSnapshot.getChildren()){
+                for (DataSnapshot keyNode : dataSnapshot.getChildren()) {
                     keys.add(keyNode.getKey());
                     Festival festival = keyNode.child("fields").getValue(Festival.class);
 
                     //Parfois, les coordonnées sont vides.
-                    if(keyNode.child("fields/coordonnees_insee/").getValue() !=null){
+                    if (keyNode.child("fields/coordonnees_insee/").getValue() != null) {
                         festival.setLatitude((Double) keyNode.child("fields/coordonnees_insee/0").getValue()); // Latitude
                         festival.setLongitude((Double) keyNode.child("fields/coordonnees_insee/1").getValue()); // Longitude
                     }
@@ -49,5 +45,9 @@ public class FirebaseDatabaseHelper {
 
             }
         });
+    }
+
+    public interface DataStatus {
+        void DataIsLoaded(List<Festival> festivals, List<String> keys);
     }
 }
