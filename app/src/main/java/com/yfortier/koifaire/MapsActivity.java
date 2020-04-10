@@ -32,8 +32,14 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
+
+import static android.location.Location.distanceBetween;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
     public static List<Festival> festivals;
@@ -43,7 +49,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     );
 
     //Location
-    Location currentLocation;
+    Location mCurrentLocation;
     FusedLocationProviderClient fusedLocationProviderClient;
 
     //Interface
@@ -58,6 +64,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     //Markers
     private LatLng mLatLng;
     private ArrayList<MarkerOptions> mMarkers = new ArrayList<>();
+
+    //Dates
 
     public MapsActivity() {
     }
@@ -223,13 +231,45 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void placementMarkers(Festival festival) {
-        mMarkers.add(new MarkerOptions().position(mLatLng));
+        float[] distance = {0}; //Initalisation de tableau pour la distance
+        String dates = getDatesFestivals(festival); //Récupération des dates formatées
+        distanceBetween(mCurrentLocation.getLatitude(), mCurrentLocation.getLongitude(), festival.getLatitude(), festival.getLongitude(), distance); //Calcul de la distance entre les markers
+        mMarkers.add(new MarkerOptions().position(mLatLng)); //On ajoute dans un tableau dédié au focus
+
+        //On ajoute sur la map
         mMap.addMarker(new MarkerOptions()
                 .position(mLatLng)
-                //.icon(BitmapDescriptorFactory.defaultMarker(new Random().nextInt(360)))
                 .title(festival.getNom_de_la_manifestation())
-                .snippet("Domaine : \t" + festival.getDomaine() + "\n"
-                        + "Site Web : \t" + festival.getSite_web()));
+                .snippet(dates + "\n"
+                        + "Domaine : \t" + festival.getDomaine() + "\n"
+                        + "Site Web : \t" + festival.getSite_web() + "\n"
+                        + "Distance : \t" + (int) distance[0] / 1000 + " km"));
+    }
+
+    private String getDatesFestivals(Festival festival) {
+        String dates = null;
+        SimpleDateFormat oldDateFormat =new SimpleDateFormat("yyyy-MM-dd", new Locale("fr", "FR"));
+        SimpleDateFormat newDateFormat =new SimpleDateFormat("dd MMMM yyyy", new Locale("fr", "FR"));
+
+        if (festival.getDate_de_debut() != null && festival.getDate_de_fin() != null) {
+            try {
+                Date dateDebutBrut = oldDateFormat.parse(festival.getDate_de_debut());
+                Date dateFinBrut = oldDateFormat.parse(festival.getDate_de_fin());
+
+                assert dateDebutBrut != null;
+                assert dateFinBrut != null;
+
+                String dateDebut = newDateFormat.format(dateDebutBrut);
+                String dateFin = newDateFormat.format(dateFinBrut);
+                dates = String.format("Du %1$s au %2$s", dateDebut, dateFin);
+            } catch (ParseException e) {
+                e.printStackTrace();
+            }
+        }
+        else
+            dates = "Dates inconnues";
+
+        return dates;
     }
 
     private void fetchLastLocation() {
@@ -238,8 +278,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             @Override
             public void onSuccess(Location location) {
                 if (location != null) {
-                    currentLocation = location;
-                    mLatLng = new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude());
+                    mCurrentLocation = location;
+                    mLatLng = new LatLng(mCurrentLocation.getLatitude(), mCurrentLocation.getLongitude());
                     mMarkers.add(new MarkerOptions().position(mLatLng));
                     mMap.addMarker(new MarkerOptions()
                             .position(mLatLng)
