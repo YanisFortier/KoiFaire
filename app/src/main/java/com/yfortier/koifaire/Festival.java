@@ -11,13 +11,14 @@ public class Festival {
     private String domaine;
     private String complement_domaine;
     private String commune_principale;
+    private Boolean isFavori;
     private double latitude; // Valeur 0 dans le json - coordonnees_insee
     private double longitude; // Valeur 1 dans le json - coordonnees_insee
 
     public Festival() {
     }
 
-    public Festival(String nom_de_la_manifestation, String date_de_debut, String date_de_fin, String region, String nom_departement, String departement, String site_web, String domaine, String complement_domaine, String commune_principale, double latitude, double longitude) {
+    public Festival(String nom_de_la_manifestation, String date_de_debut, String date_de_fin, String region, String nom_departement, String departement, String site_web, String domaine, String complement_domaine, String commune_principale, Boolean isFavori, double latitude, double longitude) {
         this.nom_de_la_manifestation = nom_de_la_manifestation;
         this.date_de_debut = date_de_debut;
         this.date_de_fin = date_de_fin;
@@ -28,6 +29,7 @@ public class Festival {
         this.domaine = domaine;
         this.complement_domaine = complement_domaine;
         this.commune_principale = commune_principale;
+        this.isFavori = isFavori;
         this.latitude = latitude;
         this.longitude = longitude;
     }
@@ -100,8 +102,8 @@ public class Festival {
         return complement_domaine;
     }
 
-    public void setComplement_domaine(String complemen_domaine) {
-        this.complement_domaine = complemen_domaine;
+    public void setComplement_domaine(String complement_domaine) {
+        this.complement_domaine = complement_domaine;
     }
 
     public String getCommune_principale() {
@@ -110,6 +112,14 @@ public class Festival {
 
     public void setCommune_principale(String commune_principale) {
         this.commune_principale = commune_principale;
+    }
+
+    public Boolean getFavori() {
+        return isFavori;
+    }
+
+    public void setFavori(Boolean favori) {
+        isFavori = favori;
     }
 
     public double getLatitude() {

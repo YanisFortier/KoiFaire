@@ -22,6 +22,7 @@ import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.GoogleMap.OnInfoWindowClickListener;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
@@ -41,7 +42,7 @@ import java.util.Locale;
 
 import static android.location.Location.distanceBetween;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
+public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, OnInfoWindowClickListener {
     public static List<Festival> festivals;
     private static LatLngBounds FranceMetroBounds = new LatLngBounds(
             new LatLng(42.6965954131, -4.32784220122),
@@ -64,8 +65,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     //Markers
     private LatLng mLatLng;
     private ArrayList<MarkerOptions> mMarkers = new ArrayList<>();
-
-    //Dates
 
     public MapsActivity() {
     }
@@ -103,7 +102,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
-
+        mMap.setOnInfoWindowClickListener(this);
         //Fonction utilisée pour formater le snippet du marker
         mMap.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter() {
 
@@ -243,13 +242,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .snippet(dates + "\n"
                         + "Domaine : \t" + festival.getDomaine() + "\n"
                         + "Site Web : \t" + festival.getSite_web() + "\n"
-                        + "Distance : \t" + (int) distance[0] / 1000 + " km"));
+                        + "Distance : \t" + (int) distance[0] / 1000 + " km \n"
+                        + "Cliquez pour ajouter en favoris"));
     }
 
     private String getDatesFestivals(Festival festival) {
         String dates = null;
-        SimpleDateFormat oldDateFormat =new SimpleDateFormat("yyyy-MM-dd", new Locale("fr", "FR"));
-        SimpleDateFormat newDateFormat =new SimpleDateFormat("dd MMMM yyyy", new Locale("fr", "FR"));
+        SimpleDateFormat oldDateFormat = new SimpleDateFormat("yyyy-MM-dd", new Locale("fr", "FR"));
+        SimpleDateFormat newDateFormat = new SimpleDateFormat("dd MMMM yyyy", new Locale("fr", "FR"));
 
         if (festival.getDate_de_debut() != null && festival.getDate_de_fin() != null) {
             try {
@@ -265,10 +265,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             } catch (ParseException e) {
                 e.printStackTrace();
             }
-        }
-        else
+        } else { // Si les dates sont absentes de la BDD
             dates = "Dates inconnues";
-
+        }
         return dates;
     }
 
@@ -289,5 +288,26 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 }
             }
         });
+    }
+
+    @Override
+    public void onInfoWindowClick(Marker marker) {
+        if (marker.getTitle().equals("Vous êtes ici")) { //On ne fait rien
+            Toast.makeText(this, "Tu es déjà mon favori", Toast.LENGTH_SHORT).show();
+        } else if (marker.getTitle().endsWith("⭐")) { // Déjà en favori ! On le retire
+            marker.hideInfoWindow();
+            marker.setTitle(marker.getTitle().substring(0, marker.getTitle().length() - 2));
+            marker.setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED));
+            marker.setSnippet(marker.getSnippet().substring(0, marker.getSnippet().length() - 19).concat("ajouter en favoris"));
+            marker.showInfoWindow();
+            Toast.makeText(this, marker.getTitle() + " retiré des favoris.", Toast.LENGTH_SHORT).show();
+        } else { // Pas en favori ! On l'ajoute
+            Toast.makeText(this, marker.getTitle() + " ajouté en favoris.", Toast.LENGTH_SHORT).show();
+            marker.hideInfoWindow();
+            marker.setTitle(marker.getTitle().concat(" ⭐")); // Ajout d'un petit emoji
+            marker.setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_YELLOW));
+            marker.setSnippet(marker.getSnippet().substring(0, marker.getSnippet().length() - 18).concat("retirer des favoris"));
+            marker.showInfoWindow();
+        }
     }
 }
