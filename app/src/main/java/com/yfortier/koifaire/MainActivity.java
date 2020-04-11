@@ -5,7 +5,9 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.widget.ImageView;
+import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
@@ -33,12 +35,13 @@ public class MainActivity extends AppCompatActivity {
         int posOfImage = random.nextInt(ListOfImages.length);
         imageView.setBackgroundResource(ListOfImages[posOfImage]);
 
-        // A-t-on la permission de le faire ?
+        // Permission
         if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 101);
         } else {
             setPermissionGiven(true);
         }
+
         //Connexion à la BDD
         new FirebaseDatabaseHelper().readDatabase(new FirebaseDatabaseHelper.DataStatus() {
             @Override
@@ -50,11 +53,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         if (requestCode == 101) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 setPermissionGiven(true);
             } else {
+                Toast.makeText(this, "L'application ne peut fonctionner sans la location.", Toast.LENGTH_LONG).show();
                 finish();
             }
         }
